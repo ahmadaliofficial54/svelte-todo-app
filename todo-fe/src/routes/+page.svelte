@@ -1,52 +1,98 @@
 <script>
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
-  let newTask = "";
-  /**
-   * @type {any[]}
-   */
+  import { Textarea } from "$lib/components/ui/textarea";
+  import { onMount } from "svelte";
+  import { loadAllTasks, saveTasks, removeTasks, updateTasks } from "$lib/api";
+
+  /** Variables **/
+
+  let newTask = { title: "", description: "" };
   let tasks = [];
   let isEdit = -1;
-  function saveTask() {
-    tasks = [...tasks, { task: newTask, isCompleted: false }];
-    newTask = "";
-  }
-  function saveEditedTask() {
-    tasks = tasks.map((item, index) =>
-      isEdit === index ? { task: newTask, isCompleted: item.isCompleted } : item
-    );
-    isEdit = -1;
-    newTask = "";
+
+  /***********************************************************/
+
+  /** LifeCycle Hooks **/
+
+  onMount(async () => {
+    const { data } = await loadAllTasks();
+    tasks = data || [];
+  });
+
+  /************************************************************/
+
+  /** Functions **/
+  async function saveTask() {
+    try {
+      await saveTasks({ ...newTask });
+      tasks = [
+        ...tasks,
+        { ...newTask, id: tasks[tasks.length - 1].id + 1, is_complete: false },
+      ];
+      newTask = { title: "", description: "" };
+    } catch (e) {
+      console.log(e);
+    }
   }
 
-  /**
-   * @param {number} index
-   */
-  function editTask(index) {
-    isEdit = index;
-    newTask = tasks[index].task;
+  async function saveEditedTask() {
+    try {
+      await updateTasks(isEdit, { ...newTask });
+      tasks = tasks.map((item, index) =>
+        isEdit === item.id
+          ? { ...newTask, is_complete: item.is_complete }
+          : item
+      );
+      isEdit = -1;
+      newTask = { title: "", description: "" };
+    } catch (e) {
+      console.log(e);
+    }
   }
-  /**
-   * @param {number} index
-   */
-  function removeTask(index) {
-    tasks = tasks.filter((_, i) => i !== index);
+
+  async function editTask(index, id) {
+    isEdit = id;
+    newTask = tasks[index];
+  }
+
+  async function markDone(index, id) {
+    try {
+      await updateTasks(id, { is_complete: !tasks[index].is_complete });
+      tasks[index].is_complete = !tasks[index].is_complete;
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
+  async function removeTask(index, id) {
+    try {
+      await removeTasks(id);
+      tasks = tasks.filter((_, i) => i !== index);
+    } catch (e) {}
   }
 </script>
 
 <div class="p-4">
   <h1 class="text-center text-4xl mb-10">Todo App in Svelte</h1>
   <h1 class="my-5 text-2xl text-center underline">Add a task</h1>
-  <div class="mt-5 flex justify-center">
+  <div class="mt-5 flex justify-center text-center">
     <form
-      class="flex gap-3"
+      class="w-1/4"
       on:submit|preventDefault={isEdit === -1 ? saveTask : saveEditedTask}
     >
       <Input
         type="text"
-        bind:value={newTask}
+        bind:value={newTask.title}
         required
-        placeholder="Add a task"
+        placeholder="Title"
+      />
+      <Textarea
+        bind:value={newTask.description}
+        required
+        rows={5}
+        class="my-3"
+        placeholder="Description"
       />
       <Button type="submit">Save Task</Button>
     </form>
@@ -59,21 +105,25 @@
         <div
           class="flex items-center justify-between gap-5 my-3 bg-slate-50 px-2 rounded-md"
         >
-          <p
-            class="text-2xl leading-none flex-1"
-            style:text-decoration={item.isCompleted ? "line-through" : ""}
-          >
-            {item.task}
-          </p>
+          <div class="w-1/2">
+            <p
+              class="text-2xl mb-3 leading-none flex-1"
+              style:text-decoration={item.is_complete ? "line-through" : ""}
+            >
+              {item.title}
+            </p>
+            <p style:text-decoration={item.is_complete ? "line-through" : ""}>
+              {item.description}
+            </p>
+          </div>
           <div class="flex items-center">
-            <Button
-              variant="link"
-              on:click={() => (item.isCompleted = !item.isCompleted)}
-              >Mark as {item.isCompleted ? "Undone" : "Done"}</Button
+            <Button variant="link" on:click={() => markDone(index, item.id)}
+              >Mark as {item.is_complete ? "Undone" : "Done"}</Button
             >
-            <Button variant="link" on:click={() => editTask(index)}>Edit</Button
+            <Button variant="link" on:click={() => editTask(index, item.id)}
+              >Edit</Button
             >
-            <Button variant="link" on:click={() => removeTask(index)}
+            <Button variant="link" on:click={() => removeTask(index, item.id)}
               >Remove</Button
             >
           </div>
