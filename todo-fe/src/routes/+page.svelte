@@ -28,7 +28,7 @@
       await saveTasks({ ...newTask });
       tasks = [
         ...tasks,
-        { ...newTask, id: tasks[tasks.length - 1].id + 1, is_complete: false },
+        { ...newTask, id: tasks[tasks.length - 1]?.id + 1, is_complete: false },
       ];
       newTask = { title: "", description: "" };
     } catch (e) {
